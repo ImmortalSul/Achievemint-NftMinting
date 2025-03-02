@@ -3,7 +3,6 @@ import { Program } from "@coral-xyz/anchor";
 import { Achievemint } from "../target/types/achievemint";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { assert, expect } from "chai";
-import { BN } from "bn.js";
 
 describe("achievemint", () => {
   // Configure the client to use the local cluster
@@ -30,9 +29,6 @@ describe("achievemint", () => {
   let nftAccountPDA: PublicKey;
   let achievemintAuthorityBump: number;
   let nftAccountBump: number;
-
-  // Create an any-typed object to avoid TypeScript errors
-  const mockAccounts: any = {};
 
   before(async () => {
     // Fund test accounts
@@ -79,7 +75,6 @@ describe("achievemint", () => {
       await program.methods
         .initialize()
         .accounts({
-          ...mockAccounts,
           authority: authority.publicKey,
           achievemintAuthority: achievemintAuthorityPDA,
           systemProgram: SystemProgram.programId,
@@ -92,7 +87,8 @@ describe("achievemint", () => {
       );
       assert.ok(authorityAccount.authority.equals(authority.publicKey));
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during initialization:", e);
+      throw e;
     }
   });
 
@@ -107,7 +103,6 @@ describe("achievemint", () => {
           testAchievementId
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: nftAccountPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -124,7 +119,8 @@ describe("achievemint", () => {
       assert.equal(nftAccount.achievementId, testAchievementId);
       assert.ok(nftAccount.owner.equals(user1.publicKey));
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during NFT minting:", e);
+      throw e;
     }
   });
 
@@ -133,18 +129,26 @@ describe("achievemint", () => {
       const longName =
         "This name is definitely longer than thirty two characters which is not allowed";
 
+      const [tempNftPDA] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("nft"),
+          user1.publicKey.toBuffer(),
+          Buffer.from("long-name-test"),
+        ],
+        program.programId
+      );
+
       await program.methods
         .mintNft(
           longName,
           testDescription,
           testRarity,
           testUnlockPercentage,
-          "another-achievement"
+          "long-name-test"
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
-          nftAccount: nftAccountPDA,
+          nftAccount: tempNftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
           systemProgram: SystemProgram.programId,
         })
@@ -155,6 +159,7 @@ describe("achievemint", () => {
       assert.fail("Should have thrown an error for long name");
     } catch (e) {
       // Expected error
+      assert.ok(e, "Expected an error to be thrown");
     }
   });
 
@@ -179,7 +184,6 @@ describe("achievemint", () => {
           testAchievementId
         )
         .accounts({
-          ...mockAccounts,
           payer: user2.publicKey,
           nftAccount: user2NftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -192,7 +196,8 @@ describe("achievemint", () => {
       assert.equal(nftAccount.achievementId, testAchievementId);
       assert.ok(nftAccount.owner.equals(user2.publicKey));
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during same achievement ID test:", e);
+      throw e;
     }
   });
 
@@ -201,7 +206,6 @@ describe("achievemint", () => {
       await program.methods
         .transferNft()
         .accounts({
-          ...mockAccounts,
           currentOwner: user1.publicKey,
           newOwner: user2.publicKey,
           nftAccount: nftAccountPDA,
@@ -212,17 +216,17 @@ describe("achievemint", () => {
       const nftAccount = await program.account.nftAccount.fetch(nftAccountPDA);
       assert.ok(nftAccount.owner.equals(user2.publicKey));
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during NFT transfer:", e);
+      throw e;
     }
   });
 
   it("6. Should fail when non-owner attempts transfer", async () => {
     try {
-      // Transfer back to user1 first to set up the test
+      // First transfer back to user1 to set up the test
       await program.methods
         .transferNft()
         .accounts({
-          ...mockAccounts,
           currentOwner: user2.publicKey,
           newOwner: user1.publicKey,
           nftAccount: nftAccountPDA,
@@ -234,7 +238,6 @@ describe("achievemint", () => {
       await program.methods
         .transferNft()
         .accounts({
-          ...mockAccounts,
           currentOwner: user2.publicKey,
           newOwner: user2.publicKey,
           nftAccount: nftAccountPDA,
@@ -246,6 +249,7 @@ describe("achievemint", () => {
       assert.fail("Should have thrown an error for unauthorized transfer");
     } catch (e) {
       // Expected error
+      assert.ok(e, "Expected an error to be thrown");
     }
   });
 
@@ -255,7 +259,6 @@ describe("achievemint", () => {
       await program.methods
         .transferNft()
         .accounts({
-          ...mockAccounts,
           currentOwner: user1.publicKey,
           newOwner: user2.publicKey,
           nftAccount: nftAccountPDA,
@@ -271,7 +274,8 @@ describe("achievemint", () => {
       assert.equal(nftAccount.achievementId, testAchievementId);
       assert.ok(nftAccount.owner.equals(user2.publicKey));
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during metadata preservation test:", e);
+      throw e;
     }
   });
 
@@ -283,7 +287,6 @@ describe("achievemint", () => {
       await program.methods
         .burnNft()
         .accounts({
-          ...mockAccounts,
           owner: user2.publicKey,
           nftAccount: nftAccountPDA,
         })
@@ -302,7 +305,8 @@ describe("achievemint", () => {
       const postBalance = await provider.connection.getBalance(user2.publicKey);
       assert.isAtLeast(postBalance, preBalance);
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during NFT burning:", e);
+      throw e;
     }
   });
 
@@ -318,7 +322,6 @@ describe("achievemint", () => {
           testAchievementId
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: nftAccountPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -331,7 +334,6 @@ describe("achievemint", () => {
       await program.methods
         .burnNft()
         .accounts({
-          ...mockAccounts,
           owner: user2.publicKey,
           nftAccount: nftAccountPDA,
         })
@@ -342,6 +344,7 @@ describe("achievemint", () => {
       assert.fail("Should have thrown an error for unauthorized burn");
     } catch (e) {
       // Expected error
+      assert.ok(e, "Expected an error to be thrown");
     }
   });
 
@@ -366,7 +369,6 @@ describe("achievemint", () => {
           "valid-percentage"
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: validNftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -378,7 +380,8 @@ describe("achievemint", () => {
       const nftAccount = await program.account.nftAccount.fetch(validNftPDA);
       assert.equal(nftAccount.unlockPercentage, validPercentage);
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during percentage validation test:", e);
+      throw e;
     }
   });
 
@@ -403,7 +406,6 @@ describe("achievemint", () => {
           "invalid-percentage"
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: invalidNftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -416,6 +418,7 @@ describe("achievemint", () => {
       assert.fail("Should have thrown an error for percentage > 100");
     } catch (e) {
       // Expected error
+      assert.ok(e, "Expected an error to be thrown");
     }
   });
 
@@ -441,7 +444,6 @@ describe("achievemint", () => {
           "description-test"
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: validNftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -453,7 +455,8 @@ describe("achievemint", () => {
       const nftAccount = await program.account.nftAccount.fetch(validNftPDA);
       assert.equal(nftAccount.description, maxDescription);
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during description length test:", e);
+      throw e;
     }
   });
 
@@ -481,7 +484,6 @@ describe("achievemint", () => {
             `rarity-test-${i}`
           )
           .accounts({
-            ...mockAccounts,
             payer: user1.publicKey,
             nftAccount: rarityNftPDA,
             achievemintAuthority: achievemintAuthorityPDA,
@@ -494,7 +496,8 @@ describe("achievemint", () => {
         assert.equal(nftAccount.rarity, rarity);
       }
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during rarity validation test:", e);
+      throw e;
     }
   });
 
@@ -520,7 +523,6 @@ describe("achievemint", () => {
           "special-chars"
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: specialNftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -532,7 +534,8 @@ describe("achievemint", () => {
       const nftAccount = await program.account.nftAccount.fetch(specialNftPDA);
       assert.equal(nftAccount.description, specialDescription);
     } catch (e) {
-      // Handle potential errors silently for demo
+      console.error("Error during special characters test:", e);
+      throw e;
     }
   });
 
@@ -557,7 +560,6 @@ describe("achievemint", () => {
           invalidAchievementId
         )
         .accounts({
-          ...mockAccounts,
           payer: user1.publicKey,
           nftAccount: invalidNftPDA,
           achievemintAuthority: achievemintAuthorityPDA,
@@ -570,6 +572,7 @@ describe("achievemint", () => {
       assert.fail("Should have thrown an error for invalid characters");
     } catch (e) {
       // Expected error
+      assert.ok(e, "Expected an error to be thrown");
     }
   });
 });
