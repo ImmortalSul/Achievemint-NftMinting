@@ -569,7 +569,7 @@ describe("achievemint", () => {
         .rpc();
 
       // This should fail
-      assert.fail("Should have thrown an error for invalid characters");
+      assert.fail("Should have thrown an error for invalid character");
     } catch (e) {
       // Expected error
       assert.ok(e, "Expected an error to be thrown");
